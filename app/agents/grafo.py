@@ -12,10 +12,18 @@ from langchain_core.messages import AnyMessage, HumanMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
+from app.agents.base import criar_agente, fontes_do_turno
 from app.agents.chatbot import no_chatbot
 from app.llm.observabilidade import callbacks, rastrear
 from app.repository import checkpointer, conversas, perfis
+# ↓ linha nova: cole logo abaixo de "from app.repository import checkpointer, conversas, perfis"
+from app.tools.mercado import FERRAMENTAS_MERCADO
 from app.utils.mensagens import conversa_limpa
+
+
+
+
+
 
 
 # O ESTADO do grafo: o que passa de nó em nó. total=False = nenhum campo é obrigatório.
@@ -27,13 +35,7 @@ class EstadoChat(TypedDict, total=False):
 
 # ---------- Montagem ----------
 def montar_grafo(memoria=None):
-    # Cria o grafo, registra o nó "chatbot" e liga START -> chatbot -> END.
-    g = StateGraph(EstadoChat)
-    g.add_node("chatbot", no_chatbot)
-    g.add_edge(START, "chatbot")
-    g.add_edge("chatbot", END)
-    # compile() deixa o grafo pronto para rodar; o checkpointer salva o estado a cada passo.
-    return g.compile(checkpointer=memoria)
+    return criar_agente("finbot", "sistema", FERRAMENTAS_MERCADO, checkpointer=memoria)
 
 
 @lru_cache
@@ -55,7 +57,9 @@ def executar(pergunta: str, sessao: str, usuario: str = "anonimo") -> dict:
 
     # A última mensagem do estado é a resposta do FinBot.
     final = estado["messages"][-1]
-    return {"resposta": final.content, "agente": "conversa", "fontes": []}
+    ultima_pergunta = max(i for i, m in enumerate(estado["messages"]) if isinstance(m, HumanMessage))
+    fontes = fontes_do_turno(estado["messages"][ultima_pergunta:])
+    return {"resposta": final.content, "agente": "finbot", "fontes": fontes}
 
 
 def historico(sessao: str) -> list[dict]:

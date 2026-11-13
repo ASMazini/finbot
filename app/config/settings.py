@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     mongo_url: str = "mongodb://localhost:27017"
     mongo_banco: str = "finbot"  # nome do banco de dados dentro do servidor
 
+    brapi_token: SecretStr | None = None
+    max_passos_agente: int = 5  # guardrail: no máximo 5 voltas no loop de tools
+
 
 
 
